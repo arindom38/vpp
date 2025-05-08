@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+####  TestCOntainer Log path ####
+/LOG_PATH_IS_UNDEFINED
