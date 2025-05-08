@@ -1,14 +1,13 @@
 package com.challenge.vpp.controller;
 
-import com.challenge.vpp.dto.BatteryRequest;
+import com.challenge.vpp.dto.BatteryRequestList;
 import com.challenge.vpp.dto.BatteryStatisticsResponse;
 import com.challenge.vpp.service.BatteryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping(value = "/api/v1",
@@ -19,8 +18,8 @@ public class BatteryController {
     private final BatteryService batteryService;
 
     @PostMapping("/batteries")
-    public ResponseEntity<Void> addBatteries(@RequestBody List<BatteryRequest> batteryRequests) {
-        batteryService.saveAll(batteryRequests);
+    public ResponseEntity<Void> addBatteries(@Valid @RequestBody BatteryRequestList batteryRequests) {
+        batteryService.saveAll(batteryRequests.getBatteries());
         return ResponseEntity.ok().build();
     }
 

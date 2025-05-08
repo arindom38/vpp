@@ -6,10 +6,10 @@ import com.challenge.vpp.exception.InvalidCapacityRangeException;
 import com.challenge.vpp.exception.InvalidPostcodeRangeException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -33,7 +34,7 @@ public class GlobalExceptionHandler {
                 request.getDescription(false)
         );
     }
-
+    
     @ExceptionHandler(InvalidCapacityRangeException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCapacityRange(
             InvalidCapacityRangeException ex, WebRequest request) {
@@ -55,20 +56,27 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationExceptions(
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, WebRequest request) {
-        Map<String, String> errors = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
-                .collect(Collectors.toMap(
-                        FieldError::getField,
-                        error -> error.getDefaultMessage() == null ? "Invalid value" : error.getDefaultMessage()
-                ));
+        Map<String, String> errors = new HashMap<>();
         
-        String errorMessage = "Validation failed: " + errors;
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            String fieldName = error.getField();
+            String key = fieldName.contains("[") ? 
+                    fieldName.substring(fieldName.indexOf("[") + 1, fieldName.indexOf("]")) + "." + 
+                    fieldName.substring(fieldName.indexOf(".") + 1) : 
+                    fieldName;
+            String message = error.getDefaultMessage();
+            errors.merge(key, message, (existing, newMsg) -> existing + ", " + newMsg);
+        });
+
+        String errorMessage = errors.entrySet().stream()
+                .map(entry -> String.format("%s: %s", entry.getKey(), entry.getValue()))
+                .collect(Collectors.joining("; "));
+
         return createErrorResponse(
                 HttpStatus.BAD_REQUEST,
-                errorMessage,
+                "Validation failed - " + errorMessage,
                 request.getDescription(false)
         );
     }
@@ -132,4 +140,21 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(errorResponse, status);
     }
+
+    @ExceptionHandler(TypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            TypeMismatchException ex, WebRequest request) {
+        String message = String.format(
+                "Failed to convert '%s' to required type '%s'",
+                ex.getValue(),
+                ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "Unknown"
+        );
+        
+        return createErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                message,
+                request.getDescription(false)
+        );
+    }
+    
 }
