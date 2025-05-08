@@ -1,0 +1,16 @@
+services:
+  postgres:
+    container_name: vpp_postgres
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: vpp
+      POSTGRES_USER: vpp_test_user
+      POSTGRES_PASSWORD: vpp_test_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - vppdata:/var/lib/postgresql/data
+
+volumes:
+  vppdata:
