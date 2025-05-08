@@ -64,9 +64,12 @@ jobs:
         if: always()
         run: |
           echo "Coverage Summary:"
-          COVERAGE=$(cat target/site/jacoco/index.html | grep -o 'Total[^%]*%' || echo "No coverage data found")
-          echo $COVERAGE
-          if [[ $COVERAGE != *"70%"* && $COVERAGE != *"8"* && $COVERAGE != *"9"* ]]; then
-            echo "Coverage is below 70%"
-            exit 1
+          COVERAGE=$(xmllint --xpath "string(//report/counter[@type='LINE']/@covered)" target/site/jacoco/jacoco.xml)
+          TOTAL=$(xmllint --xpath "string(//report/counter[@type='LINE']/@missed + //report/counter[@type='LINE']/@covered)" target/site/jacoco/jacoco.xml)
+          COVERAGE_PERCENT=$(( (COVERAGE * 100) / TOTAL ))
+
+          echo "Coverage: ${COVERAGE_PERCENT}%"
+          if [ "$COVERAGE_PERCENT" -lt 70 ]; then
+              echo "Coverage is below 70%"
+              exit 1
           fi
