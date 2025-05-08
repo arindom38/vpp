@@ -64,12 +64,10 @@ jobs:
         if: always()
         run: |
           echo "Coverage Summary:"
-          COVERAGE=$(xmllint --xpath "string(//report/counter[@type='LINE']/@covered)" target/site/jacoco/jacoco.xml)
-          TOTAL=$(xmllint --xpath "string(//report/counter[@type='LINE']/@missed + //report/counter[@type='LINE']/@covered)" target/site/jacoco/jacoco.xml)
-          COVERAGE_PERCENT=$(( (COVERAGE * 100) / TOTAL ))
+          COVERAGE_PERCENT=$(tail -n 1 target/site/jacoco/jacoco.csv | awk -F',' '{ covered=$4; missed=$5; total=covered+missed; print (covered/total)*100 }' | cut -d'.' -f1)
 
           echo "Coverage: ${COVERAGE_PERCENT}%"
-          if [ "$COVERAGE_PERCENT" -lt 70 ]; then
+          if [ -z "$COVERAGE_PERCENT" ] || [ "$COVERAGE_PERCENT" -lt 70 ]; then
               echo "Coverage is below 70%"
               exit 1
           fi
