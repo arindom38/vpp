@@ -2,10 +2,7 @@ package com.challenge.vpp.model;
 
 import com.challenge.vpp.constant.AppConstant;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -24,4 +21,14 @@ public abstract class BaseEntity {
 
     @JsonFormat(pattern = AppConstant.DATE_TIME_PATTERN, timezone = AppConstant.UTC_TIME_ZONE)
     protected ZonedDateTime modifiedAt;
+
+    @PrePersist
+    public void prePersist() {
+        createdAt = modifiedAt = ZonedDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        modifiedAt = ZonedDateTime.now();
+    }
 }

@@ -1,16 +1,16 @@
 package com.challenge.vpp.dto;
 
-import lombok.AllArgsConstructor;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class BatteryRequest {
+    @NotBlank
     private String name;
+    @NotBlank
     private int postcode;
+    @NotBlank
     private long wattCapacity;
 }
