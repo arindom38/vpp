@@ -10,4 +10,6 @@ import java.util.List;
 public interface BatteryRepository extends JpaRepository<Battery, Long> {
     List<Battery> findByPostcodeBetween(int from, int to);
     List<Battery> findByPostcodeBetweenAndWattCapacityBetween(int from, int to, long minCapacity, long maxCapacity);
+    List<Battery> findByPostcodeBetweenAndWattCapacityGreaterThanEqual(int from, int to, long minCapacity);
+    List<Battery> findByPostcodeBetweenAndWattCapacityLessThanEqual(int from, int to, long maxCapacity);
 }

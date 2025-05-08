@@ -37,6 +37,10 @@ public class BatteryServiceImpl implements BatteryService{
 
         if (minCapacity != null && maxCapacity != null) {
             batteries = batteryRepository.findByPostcodeBetweenAndWattCapacityBetween(from, to, minCapacity, maxCapacity);
+        } else if (minCapacity != null ) {
+            batteries = batteryRepository.findByPostcodeBetweenAndWattCapacityGreaterThanEqual(from, to, minCapacity);
+        } else if (maxCapacity != null) {
+            batteries = batteryRepository.findByPostcodeBetweenAndWattCapacityLessThanEqual(from, to, maxCapacity);
         } else {
             batteries = batteryRepository.findByPostcodeBetween(from, to);
         }
