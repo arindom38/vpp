@@ -5,6 +5,11 @@ on:
     branches:
       - 'main'
 
+permissions:
+  contents: read
+  packages: read
+  actions: write # This is needed for upload-artifact
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -45,7 +50,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD: postgres
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
           name: coverage-report
           path: target/site/jacoco/
