@@ -1,0 +1,62 @@
+name: Test and Coverage
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run Tests with Coverage
+        run: ./mvnw clean verify
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/postgres
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgres
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: target/site/jacoco/
+          retention-days: 7
+
+      - name: Coverage Summary
+        run: |
+          echo "Coverage Summary:"
+          COVERAGE=$(cat target/site/jacoco/index.html | grep -o 'Total[^%]*%' || echo "No coverage data found")
+          echo $COVERAGE
+          if [[ $COVERAGE != *"70%"* && $COVERAGE != *"8"* && $COVERAGE != *"9"* ]]; then
+            echo "Coverage is below 70%"
+            exit 1
+          fi
