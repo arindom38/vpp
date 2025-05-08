@@ -25,7 +25,7 @@ public class BatteryServiceImpl implements BatteryService{
                 .map(req -> Battery.builder()
                         .name(req.getName())
                         .postcode(req.getPostcode())
-                        .wattCapacity(req.getWattCapacity())
+                        .wattCapacity(req.getCapacity())
                         .build())
                 .collect(Collectors.toList());
         batteryRepository.saveAll(batteries);
