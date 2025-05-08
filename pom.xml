@@ -94,12 +94,6 @@
             <version>1.19.6</version>
             <scope>test</scope>
         </dependency>
-        <!-- For JSON processing in tests -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
