@@ -64,10 +64,23 @@ jobs:
         if: always()
         run: |
           echo "Coverage Summary:"
-          COVERAGE_PERCENT=$(tail -n 1 target/site/jacoco/jacoco.csv | awk -F',' '{ covered=$4; missed=$5; total=covered+missed; print (covered/total)*100 }' | cut -d'.' -f1)
-
-          echo "Coverage: ${COVERAGE_PERCENT}%"
-          if [ -z "$COVERAGE_PERCENT" ] || [ "$COVERAGE_PERCENT" -lt 70 ]; then
+          COVERAGE_DATA=$(awk -F',' '
+            NR>1 { 
+                missed += $4; 
+                covered += $5
+            } 
+            END { 
+                total = covered + missed;
+                if (total > 0) {
+                    percentage = (covered / total) * 100;
+                    printf "%.0f\n", percentage
+                }
+            }' target/site/jacoco/jacoco.csv)
+        
+          echo "Coverage: ${COVERAGE_DATA}%"
+          if [ -z "$COVERAGE_DATA" ] || [ "$COVERAGE_DATA" -lt 70 ]; then
               echo "Coverage is below 70%"
               exit 1
+          else
+              echo "Coverage is adequate (${COVERAGE_DATA}%)"
           fi
