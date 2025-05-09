@@ -1,16 +1,50 @@
+version: '3.8'
+
 services:
-  postgres:
-    container_name: vpp_postgres
-    image: postgres:17-alpine
-    restart: always
+  app:
+    build: .
+    restart: on-failure
+    ports:
+      - "8079:8079"
     environment:
-      POSTGRES_DB: vpp
-      POSTGRES_USER: vpp_test_user
-      POSTGRES_PASSWORD: vpp_test_pass
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/vpp
+      - SPRING_DATASOURCE_USERNAME=vpp_test_user
+      - SPRING_DATASOURCE_PASSWORD=vpp_test_pass
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=validate
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - spring-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8079/vpp/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  db:
+    image: postgres:17-alpine
+    restart: on-failure
     ports:
       - "5434:5432"
+    environment:
+      - POSTGRES_DB=vpp
+      - POSTGRES_USER=vpp_test_user
+      - POSTGRES_PASSWORD=vpp_test_pass
     volumes:
-      - vppdata:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - spring-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vpp_test_user -d vpp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  spring-network:
+    driver: bridge
 
 volumes:
-  vppdata:
+  postgres-data:
