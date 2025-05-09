@@ -2,6 +2,7 @@ package com.challenge.vpp.controller;
 
 import com.challenge.vpp.dto.BatteryRequest;
 import com.challenge.vpp.dto.BatteryRequestList;
+import com.challenge.vpp.dto.BatteryResponse;
 import com.challenge.vpp.dto.BatteryStatisticsResponse;
 import com.challenge.vpp.exception.BatteryDataException;
 import com.challenge.vpp.exception.InvalidCapacityRangeException;
@@ -15,6 +16,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,8 +29,7 @@ import java.util.stream.Stream;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -207,4 +208,129 @@ class BatteryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print());
     }
+
+    @Test
+    void getBatteryById_WithValidId_ShouldReturnBatteryResponse() throws Exception {
+        BatteryResponse response = BatteryResponse.builder()
+                .id(1L)
+                .name("Battery1")
+                .postcode(2000)
+                .wattCapacity(150L)
+                .build();
+
+        when(batteryService.getBatteryById(1L)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Battery1"))
+                .andExpect(jsonPath("$.postcode").value(2000))
+                .andExpect(jsonPath("$.wattCapacity").value(150));
+    }
+
+    @Test
+    void updateBattery_WithValidRequest_ShouldReturnUpdatedBattery() throws Exception {
+        BatteryResponse updatedResponse = BatteryResponse.builder()
+                .id(1L)
+                .name("Updated Battery")
+                .postcode(2001)
+                .wattCapacity(200L)
+                .build();
+
+        when(batteryService.updateBattery(eq(1L), any(BatteryRequest.class))).thenReturn(updatedResponse);
+
+        mockMvc.perform(put("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(batteryRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated Battery"))
+                .andExpect(jsonPath("$.postcode").value(2001))
+                .andExpect(jsonPath("$.wattCapacity").value(200));
+    }
+
+    @Test
+    void deleteBattery_WithValidId_ShouldReturnNoContent() throws Exception {
+        doNothing().when(batteryService).deleteBattery(1L);
+
+        mockMvc.perform(delete("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void getAllBatteries_ShouldReturnPagedBatteries() throws Exception {
+        BatteryResponse battery = BatteryResponse.builder()
+                .id(1L)
+                .name("Battery1")
+                .postcode(2000)
+                .wattCapacity(150L)
+                .build();
+
+        Page<BatteryResponse> page = new org.springframework.data.domain.PageImpl<>(List.of(battery));
+        when(batteryService.getAllBatteries(any())).thenReturn(page);
+
+        mockMvc.perform(get("/api/v1/batteries/all")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].name").value("Battery1"));
+    }
+
+    @Test
+    void getBatteryById_WhenBatteryNotFound_ShouldReturnNotFound() throws Exception {
+        when(batteryService.getBatteryById(1L)).thenThrow(new BatteryDataException("Battery not found"));
+
+        mockMvc.perform(get("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Battery not found"));
+    }
+
+    @Test
+    void updateBattery_WithInvalidRequest_ShouldReturnBadRequest() throws Exception {
+        BatteryRequest invalidRequest = BatteryRequest.builder().build();
+
+        mockMvc.perform(put("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateBattery_WhenServiceThrowsException_ShouldReturnBadRequest() throws Exception {
+        when(batteryService.updateBattery(eq(1L), any(BatteryRequest.class)))
+                .thenThrow(new BatteryDataException("Update failed"));
+
+        mockMvc.perform(put("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(batteryRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Update failed"));
+    }
+
+    @Test
+    void deleteBattery_WhenBatteryNotFound_ShouldReturnBadRequest() throws Exception {
+        doThrow(new BatteryDataException("Battery not found")).when(batteryService).deleteBattery(1L);
+
+        mockMvc.perform(delete("/api/v1/batteries/1")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Battery not found"));
+    }
+
+    @Test
+    void getAllBatteries_WhenServiceThrowsException_ShouldReturnBadRequest() throws Exception {
+        when(batteryService.getAllBatteries(any()))
+                .thenThrow(new BatteryDataException("Fetch failed"));
+
+        mockMvc.perform(get("/api/v1/batteries/all")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Fetch failed"));
+    }
+
+
+
+
+
 }

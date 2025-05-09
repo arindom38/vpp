@@ -1,10 +1,12 @@
 package com.challenge.vpp.service;
 
 import com.challenge.vpp.dto.BatteryRequest;
+import com.challenge.vpp.dto.BatteryResponse;
 import com.challenge.vpp.dto.BatteryStatisticsResponse;
 import com.challenge.vpp.exception.BatteryDataException;
 import com.challenge.vpp.exception.InvalidCapacityRangeException;
 import com.challenge.vpp.exception.InvalidPostcodeRangeException;
+import com.challenge.vpp.exception.ResourceNotFoundException;
 import com.challenge.vpp.model.Battery;
 import com.challenge.vpp.repo.BatteryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,10 +15,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -230,4 +237,156 @@ class BatteryServiceImplTest {
         // Assert
         assertEquals(Arrays.asList("Alpha", "Bravo", "Charlie"), response.getBatteries());
     }
+
+    @Test
+    void getBatteryById_WhenBatteryExists_ReturnsCorrectBattery() {
+        // Arrange
+        Long batteryId = 1L;
+        Battery battery = Battery.builder()
+                .name("Battery1")
+                .postcode(2000)
+                .wattCapacity(100L)
+                .build();
+        battery.setId(batteryId);
+        when(batteryRepository.findById(batteryId)).thenReturn(Optional.of(battery));
+
+        // Act
+        BatteryResponse response = batteryService.getBatteryById(batteryId);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(batteryId, response.getId());
+        assertEquals("Battery1", response.getName());
+        assertEquals(2000, response.getPostcode());
+        assertEquals(100L, response.getWattCapacity());
+    }
+
+    @Test
+    void getBatteryById_WhenBatteryNotFound_ThrowsResourceNotFoundException() {
+        // Arrange
+        Long batteryId = 1L;
+        when(batteryRepository.findById(batteryId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () ->
+                batteryService.getBatteryById(batteryId)
+        );
+    }
+
+    @Test
+    void deleteBattery_WhenBatteryExists_DeletesSuccessfully() {
+        // Arrange
+        Long batteryId = 1L;
+        when(batteryRepository.existsById(batteryId)).thenReturn(true);
+
+        // Act
+        assertDoesNotThrow(() -> batteryService.deleteBattery(batteryId));
+
+        // Assert
+        verify(batteryRepository).deleteById(batteryId);
+    }
+
+    @Test
+    void deleteBattery_WhenBatteryNotFound_ThrowsResourceNotFoundException() {
+        // Arrange
+        Long batteryId = 1L;
+        when(batteryRepository.existsById(batteryId)).thenReturn(false);
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () ->
+                batteryService.deleteBattery(batteryId)
+        );
+        verify(batteryRepository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void updateBattery_WhenBatteryExists_UpdatesSuccessfully() {
+        // Arrange
+        Long batteryId = 1L;
+        Battery existingBattery = Battery.builder()
+                .name("OldName")
+                .postcode(2000)
+                .wattCapacity(100L)
+                .build();
+        existingBattery.setId(batteryId);
+        BatteryRequest updateRequest = BatteryRequest.builder()
+                .name("NewName")
+                .postcode(2001)
+                .capacity(200L)
+                .build();
+        Battery updatedBattery = Battery.builder()
+                .name("NewName")
+                .postcode(2001)
+                .wattCapacity(200L)
+                .build();
+        updatedBattery.setId(batteryId);
+
+        when(batteryRepository.findById(batteryId)).thenReturn(Optional.of(existingBattery));
+        when(batteryRepository.save(any(Battery.class))).thenReturn(updatedBattery);
+
+        // Act
+        BatteryResponse response = batteryService.updateBattery(batteryId, updateRequest);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(batteryId, response.getId());
+        assertEquals("NewName", response.getName());
+        assertEquals(2001, response.getPostcode());
+        assertEquals(200L, response.getWattCapacity());
+        verify(batteryRepository).save(any(Battery.class));
+    }
+
+    @Test
+    void updateBattery_WhenBatteryNotFound_ThrowsResourceNotFoundException() {
+        // Arrange
+        Long batteryId = 1L;
+        BatteryRequest updateRequest = BatteryRequest.builder()
+                .name("NewName")
+                .postcode(2001)
+                .capacity(200L)
+                .build();
+        when(batteryRepository.findById(batteryId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () ->
+                batteryService.updateBattery(batteryId, updateRequest)
+        );
+        verify(batteryRepository, never()).save(any(Battery.class));
+    }
+
+    @Test
+    void getAllBatteries_ReturnsPagedResults() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Battery> batteryPage = new PageImpl<>(mockBatteries, pageable, mockBatteries.size());
+        when(batteryRepository.findAll(pageable)).thenReturn(batteryPage);
+
+        // Act
+        Page<BatteryResponse> response = batteryService.getAllBatteries(pageable);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(3, response.getContent().size());
+        assertEquals(mockBatteries.get(0).getName(), response.getContent().get(0).getName());
+        assertEquals(mockBatteries.get(0).getPostcode(), response.getContent().get(0).getPostcode());
+        assertEquals(mockBatteries.get(0).getWattCapacity(), response.getContent().get(0).getWattCapacity());
+    }
+
+    @Test
+    void getAllBatteries_WhenEmpty_ReturnsEmptyPage() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Battery> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
+        when(batteryRepository.findAll(pageable)).thenReturn(emptyPage);
+
+        // Act
+        Page<BatteryResponse> response = batteryService.getAllBatteries(pageable);
+
+        // Assert
+        assertNotNull(response);
+        assertTrue(response.getContent().isEmpty());
+        assertEquals(0, response.getTotalElements());
+    }
+
+
 }

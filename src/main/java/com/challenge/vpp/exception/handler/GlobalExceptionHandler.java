@@ -4,6 +4,7 @@ import com.challenge.vpp.dto.ErrorResponse;
 import com.challenge.vpp.exception.BatteryDataException;
 import com.challenge.vpp.exception.InvalidCapacityRangeException;
 import com.challenge.vpp.exception.InvalidPostcodeRangeException;
+import com.challenge.vpp.exception.ResourceNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
@@ -156,5 +157,16 @@ public class GlobalExceptionHandler {
                 request.getDescription(false)
         );
     }
-    
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+            ResourceNotFoundException ex, WebRequest request) {
+        return createErrorResponse(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage(),
+                request.getDescription(false)
+        );
+    }
+
+
 }

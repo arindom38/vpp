@@ -1,15 +1,19 @@
 package com.challenge.vpp.service;
 
 import com.challenge.vpp.dto.BatteryRequest;
+import com.challenge.vpp.dto.BatteryResponse;
 import com.challenge.vpp.dto.BatteryStatisticsResponse;
 import com.challenge.vpp.exception.BatteryDataException;
 import com.challenge.vpp.exception.InvalidCapacityRangeException;
 import com.challenge.vpp.exception.InvalidPostcodeRangeException;
+import com.challenge.vpp.exception.ResourceNotFoundException;
 import com.challenge.vpp.model.Battery;
 import com.challenge.vpp.repo.BatteryRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -86,4 +90,54 @@ public class BatteryServiceImpl implements BatteryService{
                 .averageWattCapacity(average)
                 .build();
     }
+
+    @Override
+    public BatteryResponse getBatteryById(Long id) {
+        Battery battery = batteryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Battery not found with id: " + id));
+        return toBatteryResponse(battery);
+    }
+
+    @Override
+    public void deleteBattery(Long id) {
+        if (!batteryRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Battery not found with id: " + id);
+        }
+        batteryRepository.deleteById(id);
+    }
+
+    @Override
+    public BatteryResponse updateBattery(Long id, BatteryRequest batteryRequest) {
+        Battery battery = batteryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Battery not found with id: " + id));
+
+        updateBatteryEntity(battery, batteryRequest);
+        Battery updatedBattery = batteryRepository.save(battery);
+        return toBatteryResponse(updatedBattery);
+    }
+
+    @Override
+    public Page<BatteryResponse> getAllBatteries(Pageable pageable) {
+        return batteryRepository.findAll(pageable)
+                .map(this::toBatteryResponse);
+    }
+
+    private void updateBatteryEntity(Battery battery, BatteryRequest request) {
+        battery.setName(request.getName());
+        battery.setPostcode(request.getPostcode());
+        battery.setWattCapacity(request.getCapacity());
+    }
+
+    private BatteryResponse toBatteryResponse(Battery battery) {
+        return BatteryResponse.builder()
+                .id(battery.getId())
+                .name(battery.getName())
+                .postcode(battery.getPostcode())
+                .wattCapacity(battery.getWattCapacity())
+                .build();
+    }
+
+
+
+
 }
